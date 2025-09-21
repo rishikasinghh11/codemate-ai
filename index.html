@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AI Virtual Terminal Sandbox — Amber Theme</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-a: #0b0710;
+      --bg-b: #1a0f08;
+      --card: rgba(255,255,255,0.02);
+      --muted: #e8d6c2;
+      --accent: #ffb86b; /* amber */
+      --accent-2: #ff7a59;
+      --glass: rgba(255,255,255,0.02);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
+      --radius: 12px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg-a),var(--bg-b));font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#fff}
+    .wrap{display:flex;flex-direction:column;gap:18px;padding:20px;min-height:100vh}
+
+    header{display:flex;align-items:center;gap:16px;padding:14px;border-radius:14px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)}
+    .logo{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#2b0b02;font-family:var(--mono)}
+    .brand-title{display:flex;flex-direction:column}
+    .brand-title .name{font-weight:700;font-size:16px}
+    .brand-title .tag{font-size:12px;color:var(--muted);margin-top:4px}
+
+    .top-controls{margin-left:auto;display:flex;gap:10px;align-items:center}
+    input#api-key-input{min-width:300px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:rgba(0,0,0,0.25);color:#fff}
+    input::placeholder{color:rgba(255,255,255,0.35)}
+    button, a.btn{padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));color:var(--accent);font-weight:700;text-decoration:none;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#2b0b02;border:none}
+
+    main{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+    .panel{background:var(--card);border-radius:14px;padding:12px;border:1px solid rgba(255,255,255,0.02);box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+    #term{height:calc(100vh - 220px);border-radius:10px;overflow:hidden}
+
+    .side{display:flex;flex-direction:column;gap:12px}
+    .card{padding:12px;border-radius:12px;background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02)}
+    h4{margin:0;font-size:13px}
+    .muted{color:var(--muted);font-size:13px}
+    .kbd{display:inline-block;padding:6px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.04);background:rgba(0,0,0,0.2);font-family:var(--mono);font-size:12px}
+
+    footer{display:flex;justify-content:center;padding:8px;color:var(--muted);font-size:12px}
+
+    /* xterm tweaks */
+    .xterm .xterm-viewport{padding:14px!important}
+    .xterm .xterm-rows{font-family:var(--mono)!important;font-size:13px!important}
+
+    @media (max-width:920px){main{grid-template-columns:1fr} .side{display:none} input#api-key-input{min-width:160px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">VT</div>
+      <div class="brand-title">
+        <div class="name">AI Virtual Terminal</div>
+        <div class="tag">Amber theme — sandboxed terminal</div>
+      </div>
+
+      <div class="top-controls">
+        <input id="api-key-input" type="password" placeholder="OpenRouter API Key">
+        <button id="btn-save-key" class="primary">Save Key</button>
+        <a id="btn-download-py-compiler" class="btn" href="https://drive.google.com/uc?export=download&id=1G7Ci97q0Moxn-AJo4I9ElnsG_OnN3fZg" download>Download Python Pseudo Compiler</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div id="term"></div>
+      </section>
+
+      <aside class="side">
+        <div class="card">
+          <h4>How to use</h4>
+          <div class="muted">Type <span class="kbd">help</span> or write plain English to get an AI-generated command.</div>
+        </div>
+
+        <div class="card">
+          <h4>Storage</h4>
+          <div class="muted">All files live in <code>localStorage</code>. Clearing site data removes them.</div>
+        </div>
+
+        <div class="card">
+          <h4>Shortcuts</h4>
+          <div class="muted">History: <span class="kbd">↑</span>/<span class="kbd">↓</span> · Autocomplete: <span class="kbd">Tab</span> · Run: <span class="kbd">Enter</span></div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>Keep your OpenRouter API key private · Built for quick prototyping</footer>
+  </div>
+
+  <script src="https://unpkg.com/xterm/lib/xterm.js"></script>
+  <script>
+    /* Core application logic unchanged — UI only differs. Elements IDs preserved. */
+
+const FS_STORAGE_KEY = 'browser_sandbox_fs_v1';
+const API_KEY_STORAGE_KEY = 'openrouter_api_key_v1';
+const HOME = '/home/user'; // virtual home
+const PROMPT_COLOR = '\x1b[32m'; // green
+const AI_COLOR = '\x1b[36m'; // cyan
+const ERROR_COLOR = '\x1b[31m'; // red
+const RESET_COLOR = '\x1b[0m';
+
+const term = new Terminal({ cols: 100, rows: 30, cursorBlink: true });
+term.open(document.getElementById('term'));
+
+function initialFs() {
+  const tree = {};
+  tree['/'] = { type: 'dir', children: { 'home': true } };
+  tree['/home'] = { type: 'dir', children: { 'user': true } };
+  tree['/home/user'] = { type: 'dir', children: {} };
+  tree['/home/user/README.txt'] = { type: 'file', content: 'This is a browser-only sandbox. Files are saved in localStorage.\nUse `help` to list commands.\nIf you type a sentence that is not a command, AI will try to generate a command for you.\n' };
+  return { cwd: HOME, tree };
+}
+
+function loadFs() {
+  try {
+    const raw = localStorage.getItem(FS_STORAGE_KEY);
+    if (!raw) {
+      const fs0 = initialFs();
+      saveFs(fs0);
+      return fs0;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('loadFs error', e);
+    const fs0 = initialFs();
+    saveFs(fs0);
+    return fs0;
+  }
+}
+
+function saveFs(fs) { localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(fs)); }
+function resolvePath(cwd, path) { if (!path) return cwd; if (path.startsWith('/')) {} else { if (cwd === '/') path = '/' + path; else path = cwd + '/' + path; } const parts = path.split('/').filter(Boolean); const stack = []; for (const p of parts) { if (p === '.') continue; if (p === '..') { if (stack.length) stack.pop(); continue; } stack.push(p); } return '/' + stack.join(''); }
+function pathExists(tree, p) { if (p === '') p = '/'; return tree.hasOwnProperty(p); }
+function isDir(tree, p) { return pathExists(tree, p) && tree[p].type === 'dir'; }
+function isFile(tree, p) { return pathExists(tree, p) && tree[p].type === 'file'; }
+function parentPath(p) { if (p === '/') return null; const idx = p.lastIndexOf('/'); if (idx === 0) return '/'; return p.substring(0, idx); }
+function baseName(p) { if (p === '/') return '/'; const idx = p.lastIndexOf('/'); return p.substring(idx+1); }
+let fs = loadFs();
+function listDir(p) { if (!isDir(fs.tree, p)) return { err: 'Not a directory' }; const node = fs.tree[p]; const names = Object.keys(node.children || {}); names.sort(); return names; }
+function makeDir(p) { if (pathExists(fs.tree, p)) return { err: 'File or directory exists' }; const parent = parentPath(p); if (!parent || !isDir(fs.tree, parent)) return { err: 'No such directory: ' + parent }; fs.tree[p] = { type: 'dir', children: {} }; fs.tree[parent].children[baseName(p)] = true; saveFs(fs); return {}; }
+function removePath(p, recursive=false) { if (!pathExists(fs.tree, p)) return { err: `No such file or directory: ${p}` }; if (isDir(fs.tree, p)) { const children = Object.keys(fs.tree[p].children || {}); if (children.length && !recursive) return { err: 'Directory not empty (use -r flag)' }; const keys = Object.keys(fs.tree); for (const k of keys) { if (k === p || k.startsWith(p + '/')) delete fs.tree[k]; } const parent = parentPath(p); if (parent && fs.tree[parent]) delete fs.tree[parent].children[baseName(p)]; saveFs(fs); return {}; } else { const parent = parentPath(p); delete fs.tree[p]; if (parent && fs.tree[parent]) delete fs.tree[parent].children[baseName(p)]; saveFs(fs); return {}; } }
+function writeFile(p, content, append=false) { const parent = parentPath(p); if (!parent || !isDir(fs.tree, parent)) return { err: 'No such directory: ' + parent }; if (!pathExists(fs.tree, p)) { fs.tree[p] = { type: 'file', content: content || '' }; fs.tree[parent].children[baseName(p)] = true; } else { if (!isFile(fs.tree, p)) return { err: 'Not a file' }; if (append) fs.tree[p].content += content; else fs.tree[p].content = content; } saveFs(fs); return {}; }
+function readFile(p) { if (!pathExists(fs.tree, p)) return { err: 'No such file' }; if (!isFile(fs.tree, p)) return { err: 'Not a file' }; return { content: fs.tree[p].content }; }
+function movePath(src, dst) { if (!pathExists(fs.tree, src)) return { err: 'No such file or directory: ' + src }; const dstParent = isDir(fs.tree, dst) ? dst : parentPath(dst); if (!dstParent || !isDir(fs.tree, dstParent)) return { err: 'Destination directory does not exist' }; const finalDst = isDir(fs.tree, dst) ? resolvePath(dst, baseName(src)) : dst; if (pathExists(fs.tree, finalDst)) return { err: 'Destination already exists' }; const keys = Object.keys(fs.tree); for (const k of keys) { if (k === src || k.startsWith(src + '/')) { const rel = k.substring(src.length); const newkey = finalDst + rel; fs.tree[newkey] = fs.tree[k]; delete fs.tree[k]; } } const srcParent = parentPath(src); if (srcParent && fs.tree[srcParent]) delete fs.tree[srcParent].children[baseName(src)]; fs.tree[dstParent].children[baseName(finalDst)] = true; saveFs(fs); return {}; }
+const COMMANDS = {'pwd': cmd_pwd, 'ls': cmd_ls, 'cd': cmd_cd, 'mkdir': cmd_mkdir,'touch': cmd_touch, 'cat': cmd_cat, 'echo': cmd_echo, 'rm': cmd_rm,'mv': cmd_mv, 'clear': cmd_clear, 'help': cmd_help, 'ps': cmd_ps};
+function cmd_pwd(args) { return fs.cwd; }
+function cmd_ls(args) { const target = args[0] ? resolvePath(fs.cwd, args[0]) : fs.cwd; if (!isDir(fs.tree, target)) { if (isFile(fs.tree, target)) return baseName(target); return `ls: cannot access '${target}': No such file or directory`; } const names = listDir(target); return names.join('\t'); }
+function cmd_cd(args) { const target = args[0] ? resolvePath(fs.cwd, args[0]) : HOME; if (!pathExists(fs.tree, target)) return `cd: no such file or directory: ${args[0] || target}`; if (!isDir(fs.tree, target)) return `cd: not a directory: ${args[0] || target}`; fs.cwd = target; saveFs(fs); return ''; }
+function cmd_mkdir(args) { if (!args[0]) return 'mkdir: missing operand'; const p = resolvePath(fs.cwd, args[0]); const r = makeDir(p); if (r.err) return `mkdir: ${r.err}`; return ''; }
+function cmd_touch(args) { if (!args[0]) return 'touch: missing file operand'; const p = resolvePath(fs.cwd, args[0]); const r = writeFile(p, '', false); if (r.err) return `touch: ${r.err}`; return ''; }
+function cmd_cat(args) { if (!args[0]) return 'cat: missing file operand'; const p = resolvePath(fs.cwd, args[0]); const r = readFile(p); if (r.err) return `cat: ${r.err}`; return r.content; }
+function cmd_echo(args) { if (args.length === 0) return ''; const redirectIndex = args.indexOf('>'); if (redirectIndex !== -1) { const text = args.slice(0, redirectIndex).join(' '); const file = args[redirectIndex+1]; if (!file) return 'echo: no file specified for redirect'; const p = resolvePath(fs.cwd, file); const w = writeFile(p, text + '\n', false); if (w.err) return `echo: ${w.err}`; return ''; } return args.join(' '); }
+function cmd_rm(args) { if (!args[0]) return 'rm: missing operand'; const recursive = args.includes('-r') || args.includes('-R'); const targets = args.filter(a => a !== '-r' && a !== '-R'); let out = ''; for (const t of targets) { const p = resolvePath(fs.cwd, t); const r = removePath(p, recursive); if (r.err) out += `rm: ${r.err}\n`; } return out.trim(); }
+function cmd_mv(args) { if (args.length !== 2) return 'mv: requires source and destination'; const src = resolvePath(fs.cwd, args[0]); const dst = resolvePath(fs.cwd, args[1]); const r = movePath(src, dst); if (r.err) return `mv: ${r.err}`; return ''; }
+function cmd_clear() { term.clear(); return ''; }
+function cmd_help() { return ['Supported commands (virtual):','ls, pwd, cd, mkdir, touch, cat, echo, rm, mv, ps, clear, help','\nNatural Language to Command:','If your input is not a recognized command, it will be sent to an AI to generate a command suggestion.','An OpenRouter API key must be saved in the controls above for this feature to work.'].join('\n'); }
+function cmd_ps() { const simulated = [ { pid: 1, user: 'root', name: 'init' }, { pid: 1337, user: 'user', name: 'virtual-shell' }, { pid: 9999, user: 'user', name: 'xterm-js' } ]; let out = `${'PID'.padEnd(8)}${'USER'.padEnd(10)}NAME\n${'-'.repeat(30)}\n`; for (const p of simulated) { out += `${String(p.pid).padEnd(8)}${p.user.padEnd(10)}${p.name}\n`; } return out; }
+
+async function generateCommandFromPrompt(prompt) { const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY); if (!apiKey) { return { err: 'OpenRouter API key not set. Please add it in the controls above.' }; } term.write(' (asking AI...)'); try { const response = await fetch("https://openrouter.ai/api/v1/chat/completions", { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ "model": "mistralai/mistral-7b-instruct", "messages": [ { "role": "system", "content": "You are an expert in shell commands for a virtual terminal. Convert the user's request into a single, executable command. The available commands are: ls, pwd, cd, mkdir, touch, cat, echo, rm, mv, ps. Provide only the command and nothing else. Do not add explanations or markdown." }, { "role": "user", "content": prompt } ] }) }); if (!response.ok) { const errorData = await response.json(); return { err: `API Error: ${errorData.error?.message || response.status}` }; } const data = await response.json(); const command = data.choices[0].message.content.trim().replace(/^`+|`+$/g, ''); return { command }; } catch (error) { return { err: `Network error: ${error.message}` }; } }
+
+let commandHistory = []; let historyIndex = -1; function getPromptString() { const displayPath = fs.cwd; return PROMPT_COLOR + displayPath + RESET_COLOR + '$ '; } function printPrompt() { term.write('\r\n' + getPromptString()); }
+let inputBuffer = ''; term.write('Welcome! Type `help` for commands or a sentence to get an AI command suggestion.\r\n'); term.write(getPromptString());
+
+term.onKey(async (e) => { const ev = e.domEvent; switch (ev.key) { case 'Enter': term.write('\r\n'); await handleCommand(inputBuffer.trim()); inputBuffer = ''; break; case 'Backspace': if (inputBuffer.length > 0) { term.write('\b \b'); inputBuffer = inputBuffer.slice(0, -1); } break; case 'ArrowUp': if (historyIndex < commandHistory.length - 1) { historyIndex++; inputBuffer = commandHistory[commandHistory.length - 1 - historyIndex]; term.write('\x1b[2K\r' + getPromptString() + inputBuffer); } break; case 'ArrowDown': if (historyIndex > 0) { historyIndex--; inputBuffer = commandHistory[commandHistory.length - 1 - historyIndex]; term.write('\x1b[2K\r' + getPromptString() + inputBuffer); } else { historyIndex = -1; inputBuffer = ''; term.write('\x1b[2K\r' + getPromptString()); } break; case 'Tab': ev.preventDefault(); handleAutocomplete(); break; default: if (e.key.length === 1 && !ev.ctrlKey && !ev.altKey && !ev.metaKey) { inputBuffer += e.key; term.write(e.key); } } });
+
+async function handleCommand(line) { if (!line) { term.write(getPromptString()); return; } if(line && (!commandHistory.length || commandHistory[commandHistory.length-1] !== line)) { commandHistory.push(line); } historyIndex = -1; const tokens = splitArgs(line); const cmd = tokens[0]; const args = tokens.slice(1); if (COMMANDS[cmd]) { const output = COMMANDS[cmd](args); if(output) term.write(output); if (cmd !== 'clear') printPrompt(); } else { const aiResult = await generateCommandFromPrompt(line); if (aiResult.err) { term.write(ERROR_COLOR + aiResult.err + RESET_COLOR); printPrompt(); } else { term.write(`${AI_COLOR}AI Suggestion: ${RESET_COLOR}${aiResult.command}\r\n`); await handleCommand(aiResult.command); } } }
+
+function handleAutocomplete() { const parts = inputBuffer.split(' '); const currentPart = parts[parts.length - 1]; let potentialMatches = []; if (parts.length === 1) { potentialMatches = Object.keys(COMMANDS).filter(cmd => cmd.startsWith(currentPart)); } else { const currentDir = parts.length > 2 ? resolvePath(fs.cwd, parts.slice(0, -1).join(' ')) : fs.cwd; const dir = listDir(currentDir); if(typeof dir.join === 'function') { potentialMatches = dir.filter(name => name.startsWith(currentPart)); } } if (potentialMatches.length === 1) { const match = potentialMatches[0]; const completion = match.substring(currentPart.length); inputBuffer += completion; term.write(completion); } else if (potentialMatches.length > 1) { term.write('\r\n' + potentialMatches.join('\t')); printPrompt(); term.write(inputBuffer); } }
+
+function splitArgs(s) { const res = []; let current = ''; let inQuotes = false; let quoteChar = null; for (let i=0;i<s.length;i++){ const ch = s[i]; if ((ch === '"' || ch === "'") && !inQuotes) { inQuotes = true; quoteChar = ch; continue; } if (ch === quoteChar && inQuotes) { inQuotes = false; quoteChar = null; continue; } if (ch === ' ' && !inQuotes) { if (current) { res.push(current); current=''; } continue; } current += ch; } if (current) res.push(current); return res; }
+
+const apiKeyInput = document.getElementById('api-key-input'); apiKeyInput.value = localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+
+document.getElementById('btn-save-key').addEventListener('click', () => { const key = apiKeyInput.value.trim(); if (key) { localStorage.setItem(API_KEY_STORAGE_KEY, key); term.write(`\r\n${AI_COLOR}API Key saved to browser storage.${RESET_COLOR}`); } else { localStorage.removeItem(API_KEY_STORAGE_KEY); term.write(`\r\n${AI_COLOR}API Key removed from browser storage.${RESET_COLOR}`); } printPrompt(); });
+  </script>
+</body>
+</html>
